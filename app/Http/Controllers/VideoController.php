@@ -8,12 +8,20 @@ use App\Models\Video;
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\File; 
 use Illuminate\Support\Facades\Storage; 
+use Illuminate\Http\Response;
+use App\Models\Comentario;
+
 
 class VideoController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+
+     
+
+
+
     public function index()
     {
         $vs_videos = Video::where('status', '=', 1) 
@@ -32,7 +40,7 @@ class VideoController extends Controller
         $videos = []; 
         foreach ($consulta as $key => $value) { 
             $ruta = "eliminar" . $value['id']; 
-            $eliminar = '';//route('delete-video', $value['id']); 
+            $eliminar = route('delete-video', $value['id']); 
             $actualizar = route('videos.edit', $value['id']); 
             $acciones = ' 
                 <div class="btn-acciones"> 
@@ -170,23 +178,67 @@ class VideoController extends Controller
      */
     public function show(string $id)
     {
-        //
+        
+        $video = Video::query()
+        ->join('users', 'users.id', '=', 'videos.user_id')
+        ->select('videos.*', 'users.name', 'users.email')
+        ->where('videos.id', '=', $id);
+        $comentarios = Comentario::query()
+        ->join('users', 'users.id', '=', 'comentarios.user_id')
+        ->select('comentarios.*', 'users.name', 'users.email')
+        ->where('video_id', '=', $id);
+        return view('video.detail', array(
+        'video' => $video->get()[0],
+        'comentarios' => $comentarios->get(),
+        ));
+
     }
 
     /**
      * Show the form for editing the specified resource.
      */
     public function edit(string $id)
-    {
-        //
-    }
+        {
+        $video = Video::findOrFail($id);
+        return view('video.edit', array(
+        'video' => $video
+        ));
+        }
+
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $id)
     {
-        //
+        $this->validate($request, [
+            'title' => 'required|min:5',
+            'description' => 'required',
+            ]);
+            $user = Auth::user();
+            $video = Video::findOrFail($id);
+            $video->user_id = $user->id;
+            $video->title = $request->input('title');
+            $video->description = $request->input('description');
+            //Subida de la miniatura
+            $image = $request->file('image');
+            if ($image) {
+            $image_path = time() . $image->getClientOriginalName();
+            Storage::disk('images')->put($image_path, File::get($image));
+            $video->image = $image_path;
+            }
+            //Subida del video
+            $video_file = $request->file('video');
+            if ($video_file) {
+            $video_path = time() . $video_file->getClientOriginalName();
+            Storage::disk('videos')->put($video_path, File::get($video_file));
+            $video->video_path = $video_path;
+            }
+            $video->status = 1;
+            $video->save();
+            return redirect()->route('videos.index')->with(array(
+            'message' => 'El video se ha actualizado correctamente'
+            ));
     }
 
     /**
@@ -194,6 +246,53 @@ class VideoController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $video = Video::find($id);
+        if ($video) {
+        $video->status = 0;
+        $video->save();
+        return redirect()->route('home')->with(array(
+        "message" => "El video se ha eliminado correctamente"
+        ));
+        } else {
+        return redirect()->route('home')->with(array(
+        "message" => "El video que trata de eliminar no existe"
+        ));
+        }
+
     }
-}
+
+
+    public function delete_video($video_id)
+        {
+        $video = Video::find($video_id);
+        if ($video) {
+        $video->status = 0;
+        $video->update();
+        return redirect()->route('videos.index')->with(array(
+        "message" => "El video se ha eliminado correctamente"
+        ));
+        } else {
+        return redirect()->route('videos.index')->with(array(
+        "message" => "El video que trata de eliminar no existe"
+        ));
+        }
+        }
+
+
+        public function getImage($filename)
+        {
+        $file = Storage::disk('images')->get($filename);
+        return new Response($file, 200);
+        }
+        
+
+        public function getVideo($filename)
+            {
+            $file = Storage::disk('videos')->get($filename);
+            return new Response($file, 200);
+            }
+
+
+
+
+}//class

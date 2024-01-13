@@ -1,0 +1,26 @@
+.home-videos {
+    .card {
+    min-width: 175px;
+    max-width: 250px;
+    }
+    .row {
+    text-align: -webkit-center;
+    }
+    }
+    .detail-video {
+    .video-content {
+    display: flex;
+    justify-content: center;
+    }
+    .panel-body{
+    border: solid 1px;
+    border-radius: 15px;
+    padding: 10px 20px;
+    }
+    .text-area{
+    margin-top: 20px;
+    }
+    .panel-title{
+    margin-top: 15px;
+    }
+}
